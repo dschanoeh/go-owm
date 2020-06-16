@@ -6,10 +6,13 @@ See the [OWM API documentation](https://openweathermap.org/api/one-call-api) for
 ## Usage
 
 ``` go
-import ("github.com/dschanoeh/go-owm")
+import (
+    "fmt"
+    "github.com/dschanoeh/go-owm"
+    )
 
 func main() {
-    w, err := GetWeather(52.41467, 10.74063, "OWM_API_KEY")
+    w, err := owm.GetWeather(52.41467, 10.74063, "OWM_API_KEY")
 
     fmt.printf("The current temperature is: %f", w.Current.Temperature)
 }
