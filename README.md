@@ -1,4 +1,6 @@
 # go-owm
+[![Travis (master)](https://travis-ci.com/dschanoeh/go-owm.svg?branch=master)](https://travis-ci.com/dschanoeh/go-owm)
+
 
 go-owm is a library for the [OpenWeatherMap "One Call API"](https://openweathermap.org/api/one-call-api), providing current weather as well as hourly and daily forecasts.
 See the [OWM API documentation](https://openweathermap.org/api/one-call-api) for a description of the provided elements.
