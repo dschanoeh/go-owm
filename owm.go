@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 )
@@ -12,6 +13,7 @@ const (
 	baseURL = "http://api.openweathermap.org/data/2.5/onecall?"
 )
 
+// WeatherData holds the weather information returned by the OWM API
 type WeatherData struct {
 	Latitude       float64              `json:"lat"`
 	Longitude      float64              `json:"lon"`
@@ -23,6 +25,7 @@ type WeatherData struct {
 	ParsedTimeZone *time.Location
 }
 
+// CurrentData represents the current weather conditions
 type CurrentData struct {
 	Timestamp     int64                `json:"dt"`
 	Sunrise       int64                `json:"sunrise"`
@@ -43,6 +46,7 @@ type CurrentData struct {
 	ParsedTime    *time.Time
 }
 
+// WeatherDescription summarizes the current weather for human presentation
 type WeatherDescription struct {
 	ID          uint16 `json:"id"`
 	Main        string `json:"main"`
@@ -50,6 +54,7 @@ type WeatherDescription struct {
 	Icon        string `json:"icon"`
 }
 
+// HourlyWeatherSlice represents one element in the hourly forecast
 type HourlyWeatherSlice struct {
 	Timestamp     int64                `json:"dt"`
 	Temperature   float64              `json:"temp"`
@@ -66,6 +71,7 @@ type HourlyWeatherSlice struct {
 	ParsedTime    *time.Time
 }
 
+// DailyWeatherSlice represents one element in the daily forecast
 type DailyWeatherSlice struct {
 	Timestamp     int64                `json:"dt"`
 	Sunrise       int64                `json:"sunrise"`
@@ -147,15 +153,114 @@ func parseData(w *WeatherData) error {
 	currentTime := time.Unix(w.Current.Timestamp, 0)
 	w.Current.ParsedTime = &currentTime
 
-	for _, data := range w.HourlyWeather {
-		t := time.Unix(data.Timestamp, 0)
-		data.ParsedTime = &t
+	for i := range w.HourlyWeather {
+		t := time.Unix(w.HourlyWeather[i].Timestamp, 0)
+		w.HourlyWeather[i].ParsedTime = &t
 	}
 
-	for _, data := range w.DailyWeather {
-		t := time.Unix(data.Timestamp, 0)
-		data.ParsedTime = &t
+	for i := range w.DailyWeather {
+		t := time.Unix(w.DailyWeather[i].Timestamp, 0)
+		w.DailyWeather[i].ParsedTime = &t
 	}
 
 	return nil
+}
+
+func (weather WeatherData) String() string {
+	s, _ := json.MarshalIndent(weather, "", "\t")
+	return string(s)
+}
+
+// WeatherAt returns the weather closest to referenceTime
+func (weather *WeatherData) WeatherAt(referenceTime time.Time) *HourlyWeatherSlice {
+	for _, slice := range weather.HourlyWeather {
+		if slice.ParsedTime == nil {
+			continue
+		}
+		difference := referenceTime.Sub(*slice.ParsedTime)
+		if math.Abs(difference.Minutes()) < 30 {
+			return &slice
+		}
+	}
+
+	return nil
+}
+
+func (weather WeatherData) TemperatureAt(referenceTime time.Time) float64 {
+	entry := weather.WeatherAt(referenceTime)
+	if entry == nil {
+		return -1
+	}
+	return entry.Temperature
+}
+
+func (weather WeatherData) WeatherTill(referenceTime time.Time) []HourlyWeatherSlice {
+	afterLast := -1
+
+	for i := range weather.HourlyWeather {
+		timeStamp := weather.HourlyWeather[i].ParsedTime
+		if timeStamp == nil {
+			continue
+		}
+		difference := referenceTime.Sub(*timeStamp)
+		if difference.Minutes() < -30 {
+			afterLast = i
+			break
+		}
+	}
+
+	if afterLast == -1 {
+		return nil
+	}
+
+	return weather.HourlyWeather[0:afterLast]
+}
+
+// CumulativePrecipitationTill returns the cumulative precipitation from the beginning of the data range till referenceTime
+func (weather WeatherData) CumulativePrecipitationTill(referenceTime time.Time) float64 {
+	forecast := weather.WeatherTill(referenceTime)
+	if forecast == nil {
+		return -1
+	}
+
+	val := 0.0
+
+	for _, item := range forecast {
+		val += item.Rain.OneHour
+		val += item.Snow.OneHour
+	}
+
+	return val
+}
+
+// AverageTemperatureTill returns the average temperature from the beginning of the data range till referenceTime
+func (weather WeatherData) AverageTemperatureTill(referenceTime time.Time) float64 {
+	forecast := weather.WeatherTill(referenceTime)
+	if forecast == nil {
+		return -1
+	}
+
+	val := 0.0
+
+	for _, item := range forecast {
+		val += item.Temperature
+	}
+
+	return val / float64(len(forecast))
+}
+
+// AverageFeelsLikeTill returns the average feels like temperature from the beginning of the data range till referenceTime
+func (weather WeatherData) AverageFeelsLikeTill(referenceTime time.Time) float64 {
+	forecast := weather.WeatherTill(referenceTime)
+	if forecast == nil {
+		return -1
+	}
+
+	val := 0.0
+
+	for _, item := range forecast {
+		val += item.FeelsLike
+	}
+
+	return val / float64(len(forecast))
 }
