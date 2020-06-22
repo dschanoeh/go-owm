@@ -91,6 +91,7 @@ type DailyWeatherSlice struct {
 	ParsedTime    *time.Time
 }
 
+// TemperatureStats contains daily temperature statistics
 type TemperatureStats struct {
 	Day     float64 `json:"day"`
 	Min     float64 `json:"min"`
@@ -100,6 +101,7 @@ type TemperatureStats struct {
 	Morning float64 `json:"morn"`
 }
 
+// FeelsLikeStats contains daily feels-like temperature statistics
 type FeelsLikeStats struct {
 	Day     float64 `json:"day"`
 	Night   float64 `json:"night"`
@@ -107,10 +109,12 @@ type FeelsLikeStats struct {
 	Morning float64 `json:"morn"`
 }
 
+// Rain contains rain data
 type Rain struct {
 	OneHour float64 `json:"1h"`
 }
 
+// Snow contains snow data
 type Snow struct {
 	OneHour float64 `json:"1h"`
 }
@@ -186,6 +190,7 @@ func (weather *WeatherData) WeatherAt(referenceTime time.Time) *HourlyWeatherSli
 	return nil
 }
 
+// TemperatureAt returns the temperature for the given referenceTime
 func (weather WeatherData) TemperatureAt(referenceTime time.Time) float64 {
 	entry := weather.WeatherAt(referenceTime)
 	if entry == nil {
@@ -194,6 +199,7 @@ func (weather WeatherData) TemperatureAt(referenceTime time.Time) float64 {
 	return entry.Temperature
 }
 
+// WeatherTill returns all weather slices from the beginning of the forecast to the given time
 func (weather WeatherData) WeatherTill(referenceTime time.Time) []HourlyWeatherSlice {
 	afterLast := -1
 
